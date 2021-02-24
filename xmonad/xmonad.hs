@@ -203,11 +203,23 @@ projects =
   , Project   "code"    "~/code"      (Just $ spawn "kitty")
   , Project   "web"     "~/"          (Just $ spawn "chromium")
   , Project   "rstudio" "~/"          (Just $ spawn "rstudio-bin")
-  , Project   "applist" "~/"
+  
+  -- Archlinux page for application list 
+  , Project   
+      "applist" 
+      "~/"
       (Just $ spawn $ "chromium " ++ url_applist ++ " --new-window")
-  , Project   "twitter" "~/"
+  
+  -- twitterdeck
+  , Project   
+      "twitter" 
+      "~/"
       (Just $ spawn $ "chromium --app=" ++ url_twitter ++ " --new-window")
-  , Project   "xmonad" "~/.xmonad"
+  
+  -- for xmonad config
+  , Project   
+      "xmonad" 
+      "~/.xmonad"
       (Just $ do spawn "chromium https://xmonad.org/documentation.html --new-window" 
                  spawn "kitty nvim ~/.xmonad/xmonad.hs" )
   ]
