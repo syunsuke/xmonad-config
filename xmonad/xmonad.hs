@@ -1,231 +1,98 @@
--- xmonad config used by 
--- https://github.com/syunsuke/xmonad-config
+--------------------------------------------------------------------------------
+-- shunsk's base xmonad.hs file for custamize
+-- https://ok-xmonad.blogspot.com
+--------------------------------------------------------------------------------
 
 import System.Exit
-import Control.Concurrent
 
 import XMonad
 import XMonad.Util.Run
-import XMonad.ManageHook
-import XMonad.Layout.Spacing
-import XMonad.Layout.Renamed
-import XMonad.Layout.LayoutModifier
-import XMonad.Layout.MultiToggle
-import XMonad.Layout.MultiToggle.Instances
-import XMonad.Layout.NoBorders
-
 import XMonad.Hooks.ManageDocks
 import XMonad.Hooks.DynamicLog
-import XMonad.Hooks.EwmhDesktops
-
-import qualified Data.Map as M
 import qualified XMonad.StackSet as W
 
 import XMonad.Util.EZConfig
-import XMonad.Util.NamedScratchpad
-
-import XMonad.Prompt.Workspace
-import XMonad.Prompt
-
-import XMonad.Actions.CycleWS
-import XMonad.Actions.TopicSpace
-import XMonad.Actions.DynamicProjects
-import qualified XMonad.Actions.DynamicWorkspaceOrder as DO
-
-import qualified DBus as D
-import qualified DBus.Client as D
-import qualified Codec.Binary.UTF8.String as UTF8
-
 
 ---------------------------------------------------------------
 -- MAIN
 ---------------------------------------------------------------
 main = do
-    dbus <- D.connectSession
-    -- Request access to the DBus name
-    D.requestName dbus (D.busName_ "org.xmonad.Log")
-        [D.nameAllowReplacement, D.nameReplaceExisting, D.nameDoNotQueue]
-    
-    xmonad $ dynamicProjects projects $ 
-        docks def { terminal          = "kitty"
-                  , modMask           = mod4Mask
-                  , focusFollowsMouse = False
-                  , workspaces        = ["home"]
-                  , borderWidth　     = 3
-                  , normalBorderColor = "#cccccc"
-                  , focusedBorderColor= "#00bbff"
-                  , manageHook        = namedScratchpadManageHook scpadData 
-                                        <+> myManageHook
-                  , handleEventHook   = fullscreenEventHook 
-                                        <+> handleEventHook def
-                  , layoutHook        = mylayouthook
-                  , logHook           = dynamicLogWithPP 
-                                      . namedScratchpadFilterOutWorkspacePP 
-                                      $ myPolybarPP dbus
-                  , keys              = \c -> mkKeymap c (myKeyMap c)
-                  }
 
--- ウィンドウ配置
-myManageHook = composeAll $
-                [ className =? "peek" --> doFloat,
-                  manageHook def
-                ]
+  -- xmobarを使う
+  h <- spawnPipe "xmobar"
+  
+  -- xmonadの実行
+  xmonad
+    $ docks 
+    $ def { terminal          = "kitty"
+          , modMask           = mod4Mask
+          , focusFollowsMouse = False
+          , workspaces        = map show [1..5 ::Int]
+          , borderWidth　     = 3
+          , normalBorderColor = "#cccccc"
+          , focusedBorderColor= "#00bbff"
+          , manageHook        = manageHook def
+          , handleEventHook   = handleEventHook def
+          , layoutHook        = mylayouthook
+          , logHook           = myXmobarLogHook h
+          , keys              = \c -> mkKeymap c (keyMapDataList c)
+          }
 
+---------------------------------------------
+-- ステータスバー表示のカスタマイズ
+---------------------------------------------
 
--- Custumise my favorite Layout
-mylayouthook = smartBorders $ avoidStruts (mytall ||| mymirror) ||| myfull
-  where mytall  = renamed [CutWordsLeft 1] 
-                $ spacingRaw True (Border 10 10 10 10) True (Border 5 5 5 5) True 
-                $ Tall 1 0.03 0.5
-        mymirror = Mirror mytall
-        myfull  = noBorders 
-                $ renamed [CutWordsLeft 1]
-                $ Full
-
-------------------------------------------------------------------------
--- Polybar settings (needs DBus client).
-------------------------------------------------------------------------
-
--- Emit a DBus signal on log updates
-dbusOutput :: D.Client -> String -> IO ()
-dbusOutput dbus str =
-  let opath  = D.objectPath_ "/org/xmonad/Log"
-      iname  = D.interfaceName_ "org.xmonad.Log"
-      mname  = D.memberName_ "Update"
-      signal = D.signal opath iname mname
-      body   = [D.toVariant $ UTF8.decodeString str]
-  in  D.emit dbus $ signal { D.signalBody = body }
-
-myPolybarPP :: D.Client -> PP
-myPolybarPP dbus =
-  def { ppOutput  = dbusOutput dbus
-      , ppCurrent =  polybarColor "#FF9F1C" "#1A1B41" . wrap "[" "]"
-      , ppTitle = wrap "%{R}" "%{R-}" . pad . shorten 30 
+-- xmobar用
+myXmobarLogHook h =
+  dynamicLogWithPP
+    xmobarPP 
+      { ppOutput  = hPutStrLn h 
+      , ppCurrent = xmobarColor "#FF9F1C" "#1A1B41" . pad . wrap "[" "]" 
+      , ppTitle   = xmobarColor "#1A1B41" "#C2E7DA" . shorten 50 . pad
       }
 
-polybarColor :: String -> String -> String -> String
-polybarColor fore_color back_color contents=
-    wrap ("%{B" <> back_color <> "} ") " %{B-}" 
-  . wrap ("%{F" <> fore_color <> "} ") " %{F-}" 
-  $ contents 
-
+---------------------------------------------
+-- レイアウト
+---------------------------------------------
+mylayouthook = 
+  avoidStruts mytall ||| avoidStruts mymirror ||| myfull
+  where mytall   =  Tall 1 0.03 0.5
+        mymirror =  Mirror mytall
+        myfull   =  Full
 
 ---------------------------------------------
 -- キーバインド関連
 ---------------------------------------------
-myKeyMap :: XConfig Layout -> [(String, X ())]
-myKeyMap conf =
+keyMapDataList :: XConfig Layout -> [(String, X ())]
+keyMapDataList conf =
   [("M-S-<Return>", spawn $ XMonad.terminal conf)
-  ,("M-p", spawn "rofi -show drun")
+  ,("M-p", spawn "dmenu_run")
   ,("M-S-c", kill)
-         
   ,("M-<Space>", sendMessage NextLayout)
-
   ,("M-S-<Space>", setLayout $  XMonad.layoutHook conf)
-  
   ,("M-n", refresh)
-  
   ,("M-<KP_Tab>", windows W.focusDown)
   ,("M-S-<KP_Tab>", windows W.focusUp)
   ,("M-j", windows W.focusDown)
   ,("M-k", windows W.focusUp)
   ,("M-m", windows W.focusMaster)
-
   ,("M-S-j", windows W.swapDown)
   ,("M-S-k", windows W.swapUp)
   ,("M-<Return>", windows W.swapMaster)
-  
   ,("M-h", sendMessage Shrink)
   ,("M-l", sendMessage Expand)
-
   ,("M-t", withFocused $ windows . W.sink)
-
   ,("M-,", sendMessage $ IncMasterN 1)
   ,("M-.", sendMessage $ IncMasterN (-1))
   ,("M-S-q", io (exitWith ExitSuccess))
   ,("M-q", spawn myRecompileCmd)
-  
-  ,("M-<R>", DO.moveTo Next HiddenNonEmptyWS)
-  ,("M-<L>", DO.moveTo Prev HiddenNonEmptyWS)
-  ,("M-C-<R>", DO.moveTo Next AnyWS)
-  ,("M-C-<L>", DO.moveTo Prev AnyWS)
-  
-  ,("M-o", namedScratchpadAction scpadData "ScratchPad")
-  ,("M-i", namedScratchpadAction scpadData "ranger")
- 
-  ,("M-f", sendMessage $ Toggle FULL)
-  ] ++
-
-
+  ]
   -- workspaceの移動等
-  [("M-g",   switchProjectPrompt myXPConfig)
-  ,("M-S-g", shiftToProjectPrompt myXPConfig)
+  ++
+  [("M-" ++ m ++ show k , windows $ f i)
+    | (i,k) <- zip (XMonad.workspaces conf) ([1..5] :: [Int])
+    , (f,m) <- [(W.view, ""),(W.shift, "S-")]
   ]
-
-    where
-      myRecompileCmd =
-        "xmonad --recompile && (killall xmobar; xmonad --restart)"
-
----------------------------------------------
--- scratchpad用の設定
----------------------------------------------
-
-scpadData =
-  [ NS "ScratchPad"
-       "kitty --title=SCPad" 
-       (title =? "SCPad")
-       (customFloating $ W.RationalRect 0.5 0.05 0.48 0.5) 
-  , NS "ranger"
-       "urxvt  -e ranger" 
-       (title =? "ranger") 
-       (customFloating $ W.RationalRect 0.05 0.1 0.9 0.8) 
-  ]
-
-
----------------------------------------------
--- ワークスペース移動プロンプトの見栄え
----------------------------------------------
-myXPConfig = def
-    { font    = "xft:M+1 mn:size=14:medium:antialias=true"
-    , position = CenteredAt 0.5 0.8 
-    , height   = 40
-    }
-
----------------------------------------------
--- DynamicProcect 用のアクション
----------------------------------------------
-projects :: [Project]
-projects =
-  [ Project   "home"    "~/"          (Just $ spawn "kitty")
-  , Project   "misc"    "~/"          Nothing
-  , Project   "image"   "~/Images"    (Just  $ spawn "geeqie")
-  , Project   "config"  "~/.config"   Nothing
-  , Project   "code"    "~/code"      (Just $ spawn "kitty")
-  , Project   "web"     "~/"          (Just $ spawn "chromium")
-  , Project   "rstudio" "~/"          (Just $ spawn "rstudio-bin")
-  
-  -- Archlinux page for application list 
-  , Project   
-      "applist" 
-      "~/"
-      (Just $ spawn $ "chromium " ++ url_applist ++ " --new-window")
-  
-  -- twitterdeck
-  , Project   
-      "twitter" 
-      "~/"
-      (Just $ spawn $ "chromium --app=" ++ url_twitter ++ " --new-window")
-  
-  -- for xmonad config
-  , Project   
-      "xmonad" 
-      "~/.xmonad"
-      (Just $ do spawn "chromium https://xmonad.org/documentation.html --new-window" 
-                 spawn "kitty nvim ~/.xmonad/xmonad.hs" )
-  ]
-   where 
-      url_applist = "https://wiki.archlinux.org/index.php/List_of_applications"
-      url_twitter = "https://tweetdeck.twitter.com/"
-
-
-
+  where
+    myRecompileCmd =
+      "xmonad --recompile && (killall xmobar; xmonad --restart)"
