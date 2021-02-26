@@ -1,64 +1,56 @@
 --------------------------------------------------------------------------------
--- shunsk's base xmonad.hs file for custamize
+-- shunsk's base xmonad.hs file for NamedScratchPad
 -- https://ok-xmonad.blogspot.com
+--
+-- 必要な外部アプリ
+--   kittyターミナル
+--   dmenu
 --------------------------------------------------------------------------------
 
 import System.Exit
-
 import XMonad
 import XMonad.Util.Run
-import XMonad.Hooks.ManageDocks
-import XMonad.Hooks.DynamicLog
-import qualified XMonad.StackSet as W
-
 import XMonad.Util.EZConfig
+
+import XMonad.Util.NamedScratchpad
+import XMonad.ManageHook
+import qualified XMonad.StackSet as W
 
 ---------------------------------------------------------------
 -- MAIN
 ---------------------------------------------------------------
-main = do
-
-  -- xmobarを使う
-  h <- spawnPipe "xmobar -f 'xft:IPAGothic:size=14:medium:antialias=true'"
-  
-  -- xmonadの実行
-  xmonad
-    $ docks 
-    $ def { terminal          = "kitty"
+main = xmonad
+      def { terminal          = "kitty"
           , modMask           = mod4Mask
-          , focusFollowsMouse = False
-          , workspaces        = map show [1..5 ::Int]
-          , borderWidth　     = 3
-          , normalBorderColor = "#cccccc"
-          , focusedBorderColor= "#00bbff"
+
+          -- スクラッチパッドを操作出来るように
+          -- manageHookを修正する
           , manageHook        = manageHook def
-          , handleEventHook   = handleEventHook def
-          , layoutHook        = mylayouthook
-          , logHook           = myXmobarLogHook h
+                              <+> namedScratchpadManageHook mySPconf
+          
           , keys              = \c -> mkKeymap c (keyMapDataList c)
           }
 
 ---------------------------------------------
--- ステータスバー表示のカスタマイズ
+-- スクラッチパッド設定データの作成
 ---------------------------------------------
 
--- xmobar用
-myXmobarLogHook h =
-  dynamicLogWithPP
-    xmobarPP 
-      { ppOutput  = hPutStrLn h 
-      , ppCurrent = xmobarColor "#FF9F1C" "#1A1B41" . pad . wrap "[" "]" 
-      , ppTitle   = xmobarColor "#1A1B41" "#C2E7DA" . shorten 50 . pad
-      }
+mySPconf = [
+  NS  "ScrathcPad01" 
+      "kitty -T ScratchPad01"
+      (title =? "ScratchPad01")
+      (customFloating $ W.RationalRect 0.51 0.05 0.48 0.5),
+  
+  NS  "ScrathcPad02" 
+      "kitty --class ScratchPad02"
+      (className =? "ScratchPad02")
+      defaultFloating, 
 
----------------------------------------------
--- レイアウト
----------------------------------------------
-mylayouthook = 
-  avoidStruts mytall ||| avoidStruts mymirror ||| myfull
-  where mytall   =  Tall 1 0.03 0.5
-        mymirror =  Mirror mytall
-        myfull   =  Full
+  NS  "ScrathcPad03" 
+      "kitty -T ScratchPad03 htop"
+      (title =? "ScratchPad03")
+      nonFloating
+  ]
 
 ---------------------------------------------
 -- キーバインド関連
@@ -71,28 +63,30 @@ keyMapDataList conf =
   ,("M-<Space>", sendMessage NextLayout)
   ,("M-S-<Space>", setLayout $  XMonad.layoutHook conf)
   ,("M-n", refresh)
-  ,("M-<KP_Tab>", windows W.focusDown)
-  ,("M-S-<KP_Tab>", windows W.focusUp)
   ,("M-j", windows W.focusDown)
   ,("M-k", windows W.focusUp)
   ,("M-m", windows W.focusMaster)
   ,("M-S-j", windows W.swapDown)
   ,("M-S-k", windows W.swapUp)
   ,("M-<Return>", windows W.swapMaster)
-  ,("M-h", sendMessage Shrink)
-  ,("M-l", sendMessage Expand)
   ,("M-t", withFocused $ windows . W.sink)
-  ,("M-,", sendMessage $ IncMasterN 1)
-  ,("M-.", sendMessage $ IncMasterN (-1))
   ,("M-S-q", io (exitWith ExitSuccess))
   ,("M-q", spawn myRecompileCmd)
   ]
-  -- workspaceの移動等
+
   ++
   [("M-" ++ m ++ show k , windows $ f i)
     | (i,k) <- zip (XMonad.workspaces conf) ([1..5] :: [Int])
     , (f,m) <- [(W.view, ""),(W.shift, "S-")]
   ]
+  
+  -- スクラッチパッドの呼び出しキー
+  ++
+  [("M-o", namedScratchpadAction mySPconf "ScrathcPad01")
+  ,("M-i", namedScratchpadAction mySPconf "ScrathcPad02")
+  ,("M-S-i", namedScratchpadAction mySPconf "ScrathcPad03")
+  ]
+  
   where
     myRecompileCmd =
       "xmonad --recompile && (killall xmobar; xmonad --restart)"
