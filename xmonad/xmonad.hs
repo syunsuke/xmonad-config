@@ -19,7 +19,7 @@ import XMonad.Util.EZConfig
 main = do
 
   -- xmobarを使う
-  h <- spawnPipe "xmobar"
+  h <- spawnPipe "xmobar -f 'xft:IPAGothic:size=14:medium:antialias=true'"
   
   -- xmonadの実行
   xmonad
