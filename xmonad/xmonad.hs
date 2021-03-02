@@ -1,6 +1,13 @@
 --------------------------------------------------------------------------------
--- shunsk's base xmonad.hs file for custamize
+-- shunsk's base xmonad.hs file for dynamicproject
 -- https://ok-xmonad.blogspot.com
+--
+-- 必要なプログラム
+--   kitty(ターミナルプログラム)
+--   xmobar
+--   dmenu
+--   chromium
+--   IPAGothic font
 --------------------------------------------------------------------------------
 
 import System.Exit
@@ -12,7 +19,9 @@ import XMonad.Hooks.DynamicLog
 import qualified XMonad.StackSet as W
 
 import XMonad.Util.EZConfig
-
+import XMonad.Actions.DynamicProjects
+import XMonad.Actions.CycleWS
+import XMonad.Prompt
 ---------------------------------------------------------------
 -- MAIN
 ---------------------------------------------------------------
@@ -23,17 +32,15 @@ main = do
   
   -- xmonadの実行
   xmonad
+    $ dynamicProjects projects
     $ docks 
     $ def { terminal          = "kitty"
           , modMask           = mod4Mask
           , focusFollowsMouse = False
-          , workspaces        = map show [1..5 ::Int]
-          , borderWidth　     = 3
-          , normalBorderColor = "#cccccc"
-          , focusedBorderColor= "#00bbff"
+          , workspaces        = ["home"] 
           , manageHook        = manageHook def
           , handleEventHook   = handleEventHook def
-          , layoutHook        = mylayouthook
+          , layoutHook        = avoidStruts $ layoutHook def
           , logHook           = myXmobarLogHook h
           , keys              = \c -> mkKeymap c (keyMapDataList c)
           }
@@ -41,8 +48,6 @@ main = do
 ---------------------------------------------
 -- ステータスバー表示のカスタマイズ
 ---------------------------------------------
-
--- xmobar用
 myXmobarLogHook h =
   dynamicLogWithPP
     xmobarPP 
@@ -52,13 +57,33 @@ myXmobarLogHook h =
       }
 
 ---------------------------------------------
--- レイアウト
+-- ワークスペース入力プロンプトの見栄え
 ---------------------------------------------
-mylayouthook = 
-  avoidStruts mytall ||| avoidStruts mymirror ||| myfull
-  where mytall   =  Tall 1 0.03 0.5
-        mymirror =  Mirror mytall
-        myfull   =  Full
+promptAethetic = def
+    { font    = "xft:IPAGothic:size=16:medium:antialias=true"
+    , position = CenteredAt 0.5 0.8 
+    , height   = 40
+    }
+
+---------------------------------------------
+-- DynamicProcect 用のアクション
+---------------------------------------------
+projects :: [Project]
+projects =
+  [ Project   "home"    "~/"          Nothing
+  , Project   "config"  "~/.config"   Nothing
+  , Project   "web"     "~/"          (Just $ spawn "chromium")
+  , Project   "code"    "~/code"      (Just $ spawn "kitty")
+
+  
+  -- Archlinux page for application list 
+  , Project   
+      "applist" 
+      "~/"
+      (Just $ spawn $ "chromium " ++ url_applist ++ " --new-window")
+  ]
+   where 
+      url_applist = "https://wiki.archlinux.org/index.php/List_of_applications"
 
 ---------------------------------------------
 -- キーバインド関連
@@ -71,27 +96,25 @@ keyMapDataList conf =
   ,("M-<Space>", sendMessage NextLayout)
   ,("M-S-<Space>", setLayout $  XMonad.layoutHook conf)
   ,("M-n", refresh)
-  ,("M-<KP_Tab>", windows W.focusDown)
-  ,("M-S-<KP_Tab>", windows W.focusUp)
   ,("M-j", windows W.focusDown)
   ,("M-k", windows W.focusUp)
   ,("M-m", windows W.focusMaster)
   ,("M-S-j", windows W.swapDown)
   ,("M-S-k", windows W.swapUp)
   ,("M-<Return>", windows W.swapMaster)
-  ,("M-h", sendMessage Shrink)
-  ,("M-l", sendMessage Expand)
   ,("M-t", withFocused $ windows . W.sink)
-  ,("M-,", sendMessage $ IncMasterN 1)
-  ,("M-.", sendMessage $ IncMasterN (-1))
   ,("M-S-q", io (exitWith ExitSuccess))
   ,("M-q", spawn myRecompileCmd)
-  ]
-  -- workspaceの移動等
-  ++
-  [("M-" ++ m ++ show k , windows $ f i)
-    | (i,k) <- zip (XMonad.workspaces conf) ([1..5] :: [Int])
-    , (f,m) <- [(W.view, ""),(W.shift, "S-")]
+
+   -- カーソルキーによるworkspaceの移動
+  ,("M-<R>", moveTo Next HiddenNonEmptyWS)
+  ,("M-<L>", moveTo Prev HiddenNonEmptyWS)
+  ,("M-C-<R>", moveTo Next AnyWS)
+  ,("M-C-<L>", moveTo Prev AnyWS) 
+
+  -- プロンプトによるワークスペース移動
+  ,("M-g",   switchProjectPrompt promptAethetic)
+  ,("M-S-g", shiftToProjectPrompt promptAethetic)
   ]
   where
     myRecompileCmd =
