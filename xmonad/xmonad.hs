@@ -7,6 +7,7 @@ import Control.Concurrent
 import XMonad
 import XMonad.Util.Run
 import XMonad.ManageHook
+
 import XMonad.Layout.Spacing
 import XMonad.Layout.Renamed
 import XMonad.Layout.LayoutModifier
@@ -18,12 +19,9 @@ import XMonad.Hooks.ManageDocks
 import XMonad.Hooks.DynamicLog
 import XMonad.Hooks.EwmhDesktops
 
-import qualified Data.Map as M
-import qualified XMonad.StackSet as W
-
 import XMonad.Util.EZConfig
 import XMonad.Util.NamedScratchpad
-
+import XMonad.Util.WorkspaceCompare
 import XMonad.Prompt.Workspace
 import XMonad.Prompt
 
@@ -31,6 +29,9 @@ import XMonad.Actions.CycleWS
 import XMonad.Actions.TopicSpace
 import XMonad.Actions.DynamicProjects
 import qualified XMonad.Actions.DynamicWorkspaceOrder as DO
+
+import qualified Data.Map as M
+import qualified XMonad.StackSet as W
 
 import qualified DBus as D
 import qualified DBus.Client as D
@@ -41,46 +42,69 @@ import qualified Codec.Binary.UTF8.String as UTF8
 -- MAIN
 ---------------------------------------------------------------
 main = do
-    dbus <- D.connectSession
-    -- Request access to the DBus name
-    D.requestName dbus (D.busName_ "org.xmonad.Log")
-        [D.nameAllowReplacement, D.nameReplaceExisting, D.nameDoNotQueue]
-    
-    xmonad $ dynamicProjects projects $ 
-        docks def { terminal          = "kitty"
-                  , modMask           = mod4Mask
-                  , focusFollowsMouse = False
-                  , workspaces        = ["home"]
-                  , borderWidth　     = 3
-                  , normalBorderColor = "#cccccc"
-                  , focusedBorderColor= "#00bbff"
-                  , manageHook        = namedScratchpadManageHook scpadData 
-                                        <+> myManageHook
-                  , handleEventHook   = fullscreenEventHook 
-                                        <+> handleEventHook def
-                  , layoutHook        = mylayouthook
-                  , logHook           = dynamicLogWithPP 
-                                      . namedScratchpadFilterOutWorkspacePP 
-                                      $ myPolybarPP dbus
-                  , keys              = \c -> mkKeymap c (myKeyMap c)
-                  }
 
+  -- Request access to the DBus name
+  dbus <- D.connectSession
+  D.requestName dbus (D.busName_ "org.xmonad.Log")
+    [D.nameAllowReplacement, D.nameReplaceExisting, D.nameDoNotQueue]
+  
+  -- xmonadの実行
+  xmonad 
+    $ dynamicProjects projects
+    $ docks 
+    $ def { terminal          = "kitty"
+          , modMask           = mod4Mask
+          , focusFollowsMouse = False
+          , workspaces        = ["home"]
+          , borderWidth　     = 3
+          , normalBorderColor = "#cccccc"
+          , focusedBorderColor= "#00bbff"
+          
+          , manageHook        
+              = namedScratchpadManageHook mySPConf 
+                <+> myManageHook
+
+          , handleEventHook
+              = fullscreenEventHook 
+                <+> handleEventHook def
+          
+          , layoutHook        = mylayouthook
+          
+          , logHook 
+              = dynamicLogWithPP 
+                . namedScratchpadFilterOutWorkspacePP 
+                $ myPolybarPP dbus
+
+          , keys = \c -> mkKeymap c (myKeyMap c)
+          }
+
+---------------------------------------------------------------
 -- ウィンドウ配置
-myManageHook = composeAll $
-                [ className =? "peek" --> doFloat,
-                  manageHook def
-                ]
+---------------------------------------------------------------
+myManageHook 
+  = composeAll 
+  $ [ className =? "peek" --> doFloat,
+      manageHook def
+    ]
 
 
--- Custumise my favorite Layout
-mylayouthook = smartBorders $ avoidStruts (mytall ||| mymirror) ||| myfull
-  where mytall  = renamed [CutWordsLeft 1] 
-                $ spacingRaw True (Border 10 10 10 10) True (Border 5 5 5 5) True 
-                $ Tall 1 0.03 0.5
-        mymirror = Mirror mytall
-        myfull  = noBorders 
-                $ renamed [CutWordsLeft 1]
-                $ Full
+---------------------------------------------------------------
+-- レイアウト
+---------------------------------------------------------------
+mylayouthook 
+  = smartBorders $ avoidStruts (mytall ||| mymirror) ||| myfull
+  where 
+    mytall 
+      = renamed [CutWordsLeft 1] 
+      $ spacingRaw True (Border 10 10 10 10) True (Border 5 5 5 5) True 
+      $ Tall 1 0.03 0.5
+    
+    mymirror 
+      = Mirror mytall
+    
+    myfull
+      = noBorders 
+      $ Full
 
 ------------------------------------------------------------------------
 -- Polybar settings (needs DBus client).
@@ -96,6 +120,7 @@ dbusOutput dbus str =
       body   = [D.toVariant $ UTF8.decodeString str]
   in  D.emit dbus $ signal { D.signalBody = body }
 
+-- polybar用の見栄え設定
 myPolybarPP :: D.Client -> PP
 myPolybarPP dbus =
   def { ppOutput  = dbusOutput dbus
@@ -103,9 +128,12 @@ myPolybarPP dbus =
       , ppTitle = wrap "%{R}" "%{R-}" . pad . shorten 30 
       }
 
+-- 色設定のヘルパー関数
+-- polybarのタグに関しては
+-- https://github.com/polybar/polybar/wiki/Formatting
 polybarColor :: String -> String -> String -> String
-polybarColor fore_color back_color contents=
-    wrap ("%{B" <> back_color <> "} ") " %{B-}" 
+polybarColor fore_color back_color contents
+  = wrap ("%{B" <> back_color <> "} ") " %{B-}" 
   . wrap ("%{F" <> fore_color <> "} ") " %{F-}" 
   $ contents 
 
@@ -118,72 +146,69 @@ myKeyMap conf =
   [("M-S-<Return>", spawn $ XMonad.terminal conf)
   ,("M-p", spawn "rofi -show drun")
   ,("M-S-c", kill)
-         
   ,("M-<Space>", sendMessage NextLayout)
-
-  ,("M-S-<Space>", setLayout $  XMonad.layoutHook conf)
-  
   ,("M-n", refresh)
   
-  ,("M-<KP_Tab>", windows W.focusDown)
-  ,("M-S-<KP_Tab>", windows W.focusUp)
   ,("M-j", windows W.focusDown)
   ,("M-k", windows W.focusUp)
   ,("M-m", windows W.focusMaster)
-
   ,("M-S-j", windows W.swapDown)
   ,("M-S-k", windows W.swapUp)
   ,("M-<Return>", windows W.swapMaster)
-  
   ,("M-h", sendMessage Shrink)
   ,("M-l", sendMessage Expand)
+  ,("M-,", sendMessage $ IncMasterN 1)
+  ,("M-.", sendMessage $ IncMasterN (-1))
 
   ,("M-t", withFocused $ windows . W.sink)
 
-  ,("M-,", sendMessage $ IncMasterN 1)
-  ,("M-.", sendMessage $ IncMasterN (-1))
   ,("M-S-q", io (exitWith ExitSuccess))
   ,("M-q", spawn myRecompileCmd)
   
-  ,("M-<R>", DO.moveTo Next HiddenNonEmptyWS)
-  ,("M-<L>", DO.moveTo Prev HiddenNonEmptyWS)
-  ,("M-C-<R>", DO.moveTo Next AnyWS)
-  ,("M-C-<L>", DO.moveTo Prev AnyWS)
+  -- workspaceの移動等
+  --,("M-<R>", moveTo Next HiddenNonEmptyWS)
+  ,("M-<R>", nextNonEmptyWS)
+  ,("M-<L>", prevNonEmptyWS)
+  ,("M-C-<R>", moveTo Next AnyWS)
+  ,("M-C-<L>", moveTo Prev AnyWS)
+  ,("M-g",   switchProjectPrompt myXPConfig)
+  ,("M-S-g", shiftToProjectPrompt myXPConfig)
   
-  ,("M-o", namedScratchpadAction scpadData "ScratchPad")
-  ,("M-i", namedScratchpadAction scpadData "ranger")
+  -- スクラッチパッド
+  ,("M-o", namedScratchpadAction mySPConf "sp01")
+  ,("M-i", namedScratchpadAction mySPConf "sp02")
  
   ,("M-f", sendMessage $ Toggle FULL)
-  ] ++
-
-
-  -- workspaceの移動等
-  [("M-g",   switchProjectPrompt myXPConfig)
-  ,("M-S-g", shiftToProjectPrompt myXPConfig)
   ]
-
     where
       myRecompileCmd =
         "xmonad --recompile && (killall xmobar; xmonad --restart)"
 
+-- from altercation/dotfiles-tilingwm
+nextNonEmptyWS = findWorkspace getSortByIndexNoSP Next HiddenNonEmptyWS 1
+        >>= \t -> (windows . W.view $ t)
+prevNonEmptyWS = findWorkspace getSortByIndexNoSP Prev HiddenNonEmptyWS 1
+        >>= \t -> (windows . W.view $ t)
+getSortByIndexNoSP =
+        fmap (.namedScratchpadFilterOutWorkspace) getSortByIndex
 ---------------------------------------------
 -- scratchpad用の設定
 ---------------------------------------------
 
-scpadData =
-  [ NS "ScratchPad"
-       "kitty --title=SCPad" 
+mySPConf =
+  [ NS "sp01"
+       "kitty -T SCPad" 
        (title =? "SCPad")
        (customFloating $ W.RationalRect 0.5 0.05 0.48 0.5) 
-  , NS "ranger"
-       "urxvt  -e ranger" 
+  , NS "sp02"
+       "kitty -T ranger ranger" 
        (title =? "ranger") 
        (customFloating $ W.RationalRect 0.05 0.1 0.9 0.8) 
   ]
 
 
 ---------------------------------------------
--- ワークスペース移動プロンプトの見栄え
+-- プロンプト用PP
 ---------------------------------------------
 myXPConfig = def
     { font    = "xft:M+1 mn:size=14:medium:antialias=true"
@@ -219,9 +244,9 @@ projects =
   -- for xmonad config
   , Project   
       "xmonad" 
-      "~/.xmonad"
+      "~/code/xmonad-config"
       (Just $ do spawn "chromium https://xmonad.org/documentation.html --new-window" 
-                 spawn "kitty nvim ~/.xmonad/xmonad.hs" )
+                 spawn "kitty lazygit")
   ]
    where 
       url_applist = "https://wiki.archlinux.org/index.php/List_of_applications"
