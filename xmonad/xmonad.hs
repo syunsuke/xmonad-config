@@ -231,9 +231,9 @@ projects =
   
   -- Archlinux page for application list 
   , Project   
-      "applist" 
+      "nixpage" 
       "~/"
-      (Just $ spawn $ "chromium " ++ url_applist ++ " --new-window")
+      (Just $ spawn $ "chromium " ++ url_nix ++ " --new-window")
   
   -- twitterdeck
   , Project   
@@ -249,7 +249,7 @@ projects =
                  spawn "kitty lazygit")
   ]
    where 
-      url_applist = "https://wiki.archlinux.org/index.php/List_of_applications"
+      url_nix = "https://nixos.org/"
       url_twitter = "https://tweetdeck.twitter.com/"
 
 
