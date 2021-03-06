@@ -1,0 +1,67 @@
+Config {
+	 font = "xft:M+1 mn:size=14:medium:antialias=true"
+       , additionalFonts    = ["xft:Symbols Nerd Font:size=14"]
+       , bgColor            = "#6290C3"
+       , fgColor            = "#F1FFE7"
+       , border             = BottomB
+       , borderWidth        = 1
+       , borderColor        = "#222266"
+       -- , alpha              = 250
+       , position           = Top
+       , iconRoot           = "/home/neko/.config/xmobar/icon"
+       --, template = "}<fc=#0000FF>%StdinReader%</fc>{"
+       , template = 
+            " <fc=#FF9F1C><fn=1></fn></fc> %StdinReader% }{| %cpu% | %memory% | %dynnetwork% %wi% | %battery% | <action=`xclock`><action=`xdaliclock` button=3>%date%</action></action>"
+       , commands = 
+       		[ Run StdinReader
+            , Run Cpu
+                [ "--template"  , "CUP: <total>%"
+                , "--minwidth" , "3"
+                , "--Low"      , "30"
+                , "--High"     , "80"
+       			, "--low" 	   , "#C2E7DA"
+       			, "--normal"   , "#1A1B41"
+       			, "--high" 	   , "#FF9F1C"
+                ] 60                
+            , Run Memory
+                [ "--template"  , "MEM: <usedratio>%"
+                , "--minwidth" , "3"
+                , "--Low"      , "30"
+                , "--High"     , "80"
+       			, "--low" 	   , "#C2E7DA"
+       			, "--normal"   , "#1A1B41"
+       			, "--high" 	   , "#FF9F1C"
+                ] 60                
+       		, Run Battery
+                [ "--template" 	, "<acstatus>"
+       			, "--Low" 	    , "10"
+       			, "--High" 	    , "99"
+       			, "--low" 	    , "#FF9F1C"
+       			, "--normal" 	, "#1A1B41"
+       			, "--high" 	    , "#C2E7DA"
+				, "--"
+			    , "-o"		    , "BAT: <left>%"
+			    , "-O"		    , "AC: <left>%"
+			    , "-i"		    , "AC: <left>%"
+                , "-p"          , "#f5f5f5"
+			    ] 60
+        	, Run DynNetwork
+                [ "--template" , "<dev>: <tx>KB <rx>KB"
+                , "--minwidth" , "4"
+                , "--Low"      , "500000"
+                , "--High"     , "2000000"
+       			, "--low" 	   , "#C2E7DA"
+       			, "--normal"   , "#1A1B41"
+       			, "--high" 	   , "#FF9F1C"
+                ] 20
+            , Run Wireless ""
+                [ "--template"  , "<fc=#6290C3,#F1FFE7> <essid> </fc> <quality>"
+                , "--Low"      , "50"
+                , "--High"     , "70"
+       			, "--low" 	   , "#C2E7DA"
+       			, "--normal"   , "#1A1B41"
+       			, "--high" 	   , "#FF9F1C"
+                ]  60
+            , Run Date "%Y/%-m/%-d %a %H:%M " "date" 10
+       		]
+       }

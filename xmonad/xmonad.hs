@@ -33,21 +33,14 @@ import qualified XMonad.Actions.DynamicWorkspaceOrder as DO
 import qualified Data.Map as M
 import qualified XMonad.StackSet as W
 
-import qualified DBus as D
-import qualified DBus.Client as D
-import qualified Codec.Binary.UTF8.String as UTF8
-
 
 ---------------------------------------------------------------
 -- MAIN
 ---------------------------------------------------------------
 main = do
+  -- xmobar
+  h <- spawnPipe "xmobar"
 
-  -- Request access to the DBus name
-  dbus <- D.connectSession
-  D.requestName dbus (D.busName_ "org.xmonad.Log")
-    [D.nameAllowReplacement, D.nameReplaceExisting, D.nameDoNotQueue]
-  
   -- xmonadの実行
   xmonad 
     $ dynamicProjects projects
@@ -68,12 +61,12 @@ main = do
               = fullscreenEventHook 
                 <+> handleEventHook def
           
-          , layoutHook        = mylayouthook
+          , layoutHook = mylayouthook
           
           , logHook 
               = dynamicLogWithPP 
                 . namedScratchpadFilterOutWorkspacePP 
-                $ myPolybarPP dbus
+                $ myXmobarPP h
 
           , keys = \c -> mkKeymap c (myKeyMap c)
           }
@@ -86,6 +79,21 @@ myManageHook
   $ [ className =? "peek" --> doFloat,
       manageHook def
     ]
+
+---------------------------------------------------------------
+-- xmobar用
+---------------------------------------------------------------
+-- Custumise xmobar's PP
+myXmobarPP h =
+  xmobarPP
+    { ppOutput = hPutStrLn h 
+    
+    , ppCurrent 
+      = xmobarColor "#FF9F1C" "#1A1B41" . pad . wrap "[" "]" 
+    
+    , ppTitle 
+      = xmobarColor "#1A1B41" "#C2E7DA" . shorten 50 . pad
+    }
 
 
 ---------------------------------------------------------------
@@ -105,38 +113,6 @@ mylayouthook
     myfull
       = noBorders 
       $ Full
-
-------------------------------------------------------------------------
--- Polybar settings (needs DBus client).
-------------------------------------------------------------------------
-
--- Emit a DBus signal on log updates
-dbusOutput :: D.Client -> String -> IO ()
-dbusOutput dbus str =
-  let opath  = D.objectPath_ "/org/xmonad/Log"
-      iname  = D.interfaceName_ "org.xmonad.Log"
-      mname  = D.memberName_ "Update"
-      signal = D.signal opath iname mname
-      body   = [D.toVariant $ UTF8.decodeString str]
-  in  D.emit dbus $ signal { D.signalBody = body }
-
--- polybar用の見栄え設定
-myPolybarPP :: D.Client -> PP
-myPolybarPP dbus =
-  def { ppOutput  = dbusOutput dbus
-      , ppCurrent =  polybarColor "#FF9F1C" "#1A1B41" . wrap "[" "]"
-      , ppTitle = wrap "%{R}" "%{R-}" . pad . shorten 30 
-      }
-
--- 色設定のヘルパー関数
--- polybarのタグに関しては
--- https://github.com/polybar/polybar/wiki/Formatting
-polybarColor :: String -> String -> String -> String
-polybarColor fore_color back_color contents
-  = wrap ("%{B" <> back_color <> "} ") " %{B-}" 
-  . wrap ("%{F" <> fore_color <> "} ") " %{F-}" 
-  $ contents 
-
 
 ---------------------------------------------
 -- キーバインド関連
