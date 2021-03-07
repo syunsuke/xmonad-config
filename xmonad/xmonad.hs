@@ -228,6 +228,7 @@ projects =
   , Project   "code"    "~/code"      (Just $ spawn "kitty")
   , Project   "web"     "~/"          (Just $ spawn "chromium")
   , Project   "rstudio" "~/"          (Just $ spawn "rstudio-bin")
+  , Project   "slack" "~/"          (Just $ spawn "slack")
   
   -- Archlinux page for application list 
   , Project   
