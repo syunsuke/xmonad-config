@@ -37,7 +37,8 @@ import qualified DBus as D
 import qualified DBus.Client as D
 import qualified Codec.Binary.UTF8.String as UTF8
 
-
+import XMonad.Actions.Navigation2D
+import XMonad.Layout.WindowNavigation
 ---------------------------------------------------------------
 -- MAIN
 ---------------------------------------------------------------
@@ -52,6 +53,7 @@ main = do
   xmonad 
     $ dynamicProjects projects
     $ docks 
+    $ withNavigation2DConfig myNavi
     $ def { terminal          = "kitty"
           , modMask           = mod4Mask
           , focusFollowsMouse = False
@@ -79,6 +81,15 @@ main = do
           }
 
 ---------------------------------------------------------------
+-- カスタムナビゲーション
+---------------------------------------------------------------
+
+myNavi = def {
+  defaultTiledNavigation = sideNavigation
+}
+
+
+---------------------------------------------------------------
 -- ウィンドウ配置
 ---------------------------------------------------------------
 myManageHook 
@@ -92,7 +103,8 @@ myManageHook
 -- レイアウト
 ---------------------------------------------------------------
 mylayouthook 
-  = smartBorders $ avoidStruts (mytall ||| mymirror) ||| myfull
+  = smartBorders 
+  $ avoidStruts (mytall ||| mymirror) ||| myfull
   where 
     mytall 
       = renamed [CutWordsLeft 1] 
@@ -167,13 +179,19 @@ myKeyMap conf =
   
   -- workspaceの移動等
   --,("M-<R>", moveTo Next HiddenNonEmptyWS)
-  ,("M-<R>", nextNonEmptyWS)
-  ,("M-<L>", prevNonEmptyWS)
-  ,("M-C-<R>", moveTo Next AnyWS)
-  ,("M-C-<L>", moveTo Prev AnyWS)
+  ,("M-C-<R>", nextNonEmptyWS)
+  ,("M-C-<L>", prevNonEmptyWS)
+  --,("M-C-<R>", moveTo Next AnyWS)
+  --,("M-C-<L>", moveTo Prev AnyWS)
   ,("M-g",   switchProjectPrompt myXPConfig)
   ,("M-S-g", shiftToProjectPrompt myXPConfig)
   
+  -- windowのフォーカス移動
+  ,("M-<R>", windowGo R False)
+  ,("M-<L>", windowGo L False)
+  ,("M-<U>", windowGo U False)
+  ,("M-<D>", windowGo D False)
+
   -- スクラッチパッド
   ,("M-o", namedScratchpadAction mySPConf "sp01")
   ,("M-i", namedScratchpadAction mySPConf "sp02")
