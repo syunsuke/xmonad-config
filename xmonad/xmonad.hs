@@ -1,7 +1,16 @@
---------------------------------------------------------------------------------
+------------------------------------------------------------------------------
 -- shunsk's base xmonad.hs file for custamize
 -- https://ok-xmonad.blogspot.com
---------------------------------------------------------------------------------
+-- minimam base
+-- 説明で使うxmonad.hsのベースになるファイル
+-- ~/.config/xmobar/mobarrcはリネームしておく
+-- xmobarのフォントは日本語が使えるIPAフォント
+-- 必要アプリ
+--  kitty
+--  dmenu
+--  IPAfont
+--  xmobar
+------------------------------------------------------------------------------
 
 import System.Exit
 
@@ -28,9 +37,6 @@ main = do
           , modMask           = mod4Mask
           , focusFollowsMouse = False
           , workspaces        = map show [1..5 ::Int]
-          , borderWidth　     = 3
-          , normalBorderColor = "#cccccc"
-          , focusedBorderColor= "#00bbff"
           , manageHook        = manageHook def
           , handleEventHook   = handleEventHook def
           , layoutHook        = mylayouthook
@@ -69,21 +75,14 @@ keyMapDataList conf =
   ,("M-p", spawn "dmenu_run")
   ,("M-S-c", kill)
   ,("M-<Space>", sendMessage NextLayout)
-  ,("M-S-<Space>", setLayout $  XMonad.layoutHook conf)
   ,("M-n", refresh)
-  ,("M-<KP_Tab>", windows W.focusDown)
-  ,("M-S-<KP_Tab>", windows W.focusUp)
   ,("M-j", windows W.focusDown)
   ,("M-k", windows W.focusUp)
   ,("M-m", windows W.focusMaster)
   ,("M-S-j", windows W.swapDown)
   ,("M-S-k", windows W.swapUp)
   ,("M-<Return>", windows W.swapMaster)
-  ,("M-h", sendMessage Shrink)
-  ,("M-l", sendMessage Expand)
   ,("M-t", withFocused $ windows . W.sink)
-  ,("M-,", sendMessage $ IncMasterN 1)
-  ,("M-.", sendMessage $ IncMasterN (-1))
   ,("M-S-q", io (exitWith ExitSuccess))
   ,("M-q", spawn myRecompileCmd)
   ]
