@@ -1,7 +1,9 @@
 ------------------------------------------------------------------------------
 -- shunsk's base xmonad.hs file for custamize
 -- https://ok-xmonad.blogspot.com
--- minimam base
+
+-- Navigation2Dモジュール説明用
+
 -- 説明で使うxmonad.hsのベースになるファイル
 -- ~/.config/xmobar/mobarrcはリネームしておく
 -- xmobarのフォントは日本語が使えるIPAフォント
@@ -22,6 +24,9 @@ import qualified XMonad.StackSet as W
 
 import XMonad.Util.EZConfig
 
+-- 方向の指示でフォーカス移動する
+import XMonad.Actions.Navigation2D
+
 ---------------------------------------------------------------
 -- MAIN
 ---------------------------------------------------------------
@@ -32,7 +37,8 @@ main = do
   
   -- xmonadの実行
   xmonad
-    $ docks 
+    $ docks
+    $ withNavigation2DConfig myNavi2dConfig
     $ def { terminal          = "kitty"
           , modMask           = mod4Mask
           , focusFollowsMouse = False
@@ -43,6 +49,13 @@ main = do
           , logHook           = myXmobarLogHook h
           , keys              = \c -> mkKeymap c (keyMapDataList c)
           }
+
+---------------------------------------------
+-- Navigation2DConfig型データの調整
+---------------------------------------------
+myNavi2dConfig 
+  = def { defaultTiledNavigation = sideNavigation
+        }
 
 ---------------------------------------------
 -- ステータスバー表示のカスタマイズ
@@ -85,6 +98,12 @@ keyMapDataList conf =
   ,("M-t", withFocused $ windows . W.sink)
   ,("M-S-q", io (exitWith ExitSuccess))
   ,("M-q", spawn myRecompileCmd)
+
+  -- Navigation2D用のキーバインド
+  ,("M-<R>", windowGo R False)
+  ,("M-<L>", windowGo L False)
+  ,("M-<U>", windowGo U False)
+  ,("M-<D>", windowGo D False)
   ]
   -- workspaceの移動等
   ++
