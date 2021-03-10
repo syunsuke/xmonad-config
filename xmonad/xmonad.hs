@@ -255,6 +255,11 @@ projects =
       (Just $ spawn $ "chromium " ++ url_nix ++ " --new-window")
   
   , Project   
+      "nixpill" 
+      "~/nixpill"
+      (Just $ spawn $ "chromium " ++ url_nix_pill ++ " --new-window")
+  
+  , Project   
       "nixsearch" 
       "~/"
       (Just $ spawn $ "chromium --app=" ++ url_nix_package_search ++ " --new-window")
@@ -274,6 +279,7 @@ projects =
   ]
    where 
       url_nix = "https://nixos.org/"
+      url_nix_pill = "https://nixos.org/guides/nix-pills/"
       url_nix_package_search = "https://search.nixos.org/packages"
       url_twitter = "https://tweetdeck.twitter.com/"
 
