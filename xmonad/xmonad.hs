@@ -2,15 +2,11 @@
 -- https://github.com/syunsuke/xmonad-config
 
 import System.Exit
-import Control.Concurrent
 
 import XMonad
-import XMonad.Util.Run
-import XMonad.ManageHook
 
 import XMonad.Layout.Spacing
 import XMonad.Layout.Renamed
-import XMonad.Layout.LayoutModifier
 import XMonad.Layout.MultiToggle
 import XMonad.Layout.MultiToggle.Instances
 import XMonad.Layout.NoBorders
@@ -22,15 +18,11 @@ import XMonad.Hooks.EwmhDesktops
 import XMonad.Util.EZConfig
 import XMonad.Util.NamedScratchpad
 import XMonad.Util.WorkspaceCompare
-import XMonad.Prompt.Workspace
 import XMonad.Prompt
 
 import XMonad.Actions.CycleWS
-import XMonad.Actions.TopicSpace
 import XMonad.Actions.DynamicProjects
-import qualified XMonad.Actions.DynamicWorkspaceOrder as DO
 
-import qualified Data.Map as M
 import qualified XMonad.StackSet as W
 
 import qualified DBus as D
@@ -45,8 +37,8 @@ main = do
 
   -- Request access to the DBus name
   dbus <- D.connectSession
-  D.requestName dbus (D.busName_ "org.xmonad.Log")
-    [D.nameAllowReplacement, D.nameReplaceExisting, D.nameDoNotQueue]
+  _ <- D.requestName dbus (D.busName_ "org.xmonad.Log")
+       [D.nameAllowReplacement, D.nameReplaceExisting, D.nameDoNotQueue]
   
   -- xmonadの実行
   xmonad 
